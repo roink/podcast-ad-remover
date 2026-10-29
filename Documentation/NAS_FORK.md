@@ -89,3 +89,12 @@ checks passed, including form submission data and the Save button state.
 
 ![Desktop language selector](screenshots/nas-fork/language-desktop.png)
 ![Mobile language selector](screenshots/nas-fork/language-mobile.png)
+
+NAS deployment succeeded with the queue paused and all eight subscriptions on
+Automatic. Health returned 200; the service uses the local fork image/update
+policy. On the N150 with two CPUs and a 1.5-GiB smoke-test limit, real English
+Moonshine inference peaked at 508 MiB RSS and YAMNet at 721 MiB. Idle application
+memory was about 238 MB. The Tiny automatic detector was prefetched into the
+persistent cache. Existing published media/queue were preserved; HAOS stayed up.
+A synthetic melody also produced real YAMNet Music events above 0.98 confidence.
+Full-podcast accuracy/cut quality and long-episode memory remain unqualified.
