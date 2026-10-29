@@ -470,9 +470,14 @@ class SubscriptionRepository:
         minimum_retained_seconds: float | None = None,
         keep_whole_show: bool | None = None,
         language: str | None = None,
+        missed_ad_examples: str | None = None,
     ):
         if language is not None and language not in {"auto", "en", "de"}:
             raise ValueError("Unknown podcast language")
+        if missed_ad_examples is not None:
+            if len(missed_ad_examples) > 20000:
+                raise ValueError("Missed ad examples must be at most 20000 characters")
+            missed_ad_examples = missed_ad_examples.strip()
         from app.core.timeline import WORKFLOWS, threshold
         if processing_workflow is not None and processing_workflow not in WORKFLOWS:
             raise ValueError("Unknown processing workflow")
@@ -508,7 +513,8 @@ class SubscriptionRepository:
                     remove_editorial_non_speech = COALESCE(?, remove_editorial_non_speech),
                     remove_non_editorial_non_speech = COALESCE(?, remove_non_editorial_non_speech),
                     minimum_retained_seconds = COALESCE(?, minimum_retained_seconds),
-                    language = COALESCE(?, language)
+                    language = COALESCE(?, language),
+                    missed_ad_examples = COALESCE(?, missed_ad_examples)
                 WHERE id = ?
             """, (
                 remove_ads,
@@ -534,6 +540,7 @@ class SubscriptionRepository:
                 remove_non_editorial_non_speech,
                 minimum_retained_seconds,
                 language,
+                missed_ad_examples,
                 id,
             ))
             if keep_whole_show is not None:

@@ -31,6 +31,12 @@
  </select>
  <p class="text-sm">Automatic detects the spoken language. A specific language guides transcription of future processing.</p>
 </div>
+<div class="mb-4">
+ <input form="podcast-settings-form" type="hidden" name="missed_ad_examples_present" value="true">
+ <label for="missed-ad-examples">Previously missed ads and promos</label>
+ <textarea form="podcast-settings-form" id="missed-ad-examples" name="missed_ad_examples" aria-describedby="missed-ad-examples-help" rows="6" maxlength="20000" class="input">{{ subscription.missed_ad_examples }}</textarea>
+ <p id="missed-ad-examples-help" class="settings-help">Paste wording from missed ads or promos for this podcast, with a blank line between examples (20,000 characters total). These examples help the classifier recognize similar segments; your removal switches still decide cuts. Leave empty for normal classification. Applies to newly queued processing; published episodes and existing queued jobs keep their settings.</p>
+</div>
 <details class="podcast-setting-group" data-settings-tab="processing" data-group="0" data-inheritance-group><summary>Remove content<span data-group-summary></span></summary><div class="group-body">{{ inherit('content_removal') }}<div data-override-fields>
    {{ check('remove_ads','Ads','content_removal') }}{{ check('remove_promos','Promos','content_removal') }}
    {{ check('remove_intros','Intros','content_removal') }}{{ check('remove_outros','Outros','content_removal') }}

@@ -2,6 +2,8 @@
 
 ## NAS fork (unreleased)
 
+- Optional per-podcast missed ad/promo examples in settings and the classifier prompt, with unchanged empty defaults.
+
 - Per-podcast Automatic/English/German transcription selection.
 - Moonshine Small Streaming EN/DE CPU models with isolated lifetime.
 - Bounded YAMNet acoustic evidence merged into complete classification timelines.

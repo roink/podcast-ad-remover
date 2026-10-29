@@ -65,6 +65,7 @@ class SubscriptionSettingsUpdate(BaseModel):
     remove_outros: bool | None = None
     language: Literal["auto", "en", "de"] | None = None
     custom_instructions: str | None = None
+    missed_ad_examples: str | None = Field(default=None, max_length=20000)
     append_summary: Literal[False] | None = None
     append_title_intro: bool | None = None
     ai_rewrite_description: bool | None = None

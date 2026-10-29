@@ -382,6 +382,7 @@ async def update_subscription_settings(
         inherit_retention=inherit_retention,
         inherit_default_features=inherit_default_features,
         language=updates.get("language"),
+        missed_ad_examples=updates.get("missed_ad_examples"),
         inherit_custom_instructions=inherit_custom_instructions,
         watermark_artwork=updates.get("watermark_artwork", stored.get("watermark_artwork")),
         processing_workflow=updates.get("processing_workflow"),

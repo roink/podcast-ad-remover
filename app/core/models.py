@@ -38,6 +38,7 @@ class Subscription(SubscriptionBase):
     remove_intros: bool = False
     remove_outros: bool = False
     custom_instructions: Optional[str] = None
+    missed_ad_examples: str = Field(default="", max_length=20000)
     processing_workflow: Literal["complete_timeline"] = "complete_timeline"
     inherit_processing_workflow: bool = False
     remove_editorial_non_speech: bool = False

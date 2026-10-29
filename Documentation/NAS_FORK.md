@@ -98,3 +98,29 @@ memory was about 238 MB. The Tiny automatic detector was prefetched into the
 persistent cache. Existing published media/queue were preserved; HAOS stayed up.
 A synthetic melody also produced real YAMNet Music events above 0.98 confidence.
 Full-podcast accuracy/cut quality and long-episode memory remain unqualified.
+
+## Previously missed ads and promos
+
+Under **Podcast settings → Processing → Previously missed ads and promos**, paste
+transcript excerpts from ads/promos the classifier previously missed. Separate
+examples with a blank line (20,000 characters total per podcast). Save settings.
+Examples are optional, private to that podcast's configuration, and sent to the
+configured classification provider with the prompt. They are reference excerpts,
+not extra timeline items or instructions. The classifier can recognize similar
+or paraphrased pitches; removal switches still determine cuts. Editorial mentions
+of the same sponsor/topic alone are not grounds for classification as an ad.
+
+An empty or whitespace-only field leaves the existing prompt unchanged. Clearing
+and saving removes the examples. Examples apply when jobs are newly queued;
+existing queued/running snapshots and published episodes are preserved. Requeue
+an episode deliberately to classify it with updated examples. Prompt changes
+invalidate the classification cache without requiring retranscription.
+
+The settings API accepts `missed_ad_examples` as text, with the same blank-line
+separator and length limit. Omission/null preserves existing examples; an empty
+string clears them. Prompt preview includes the selected podcast's examples.
+
+Migration `20261029_0029_missed_ad_examples` adds a non-null TEXT column defaulting
+to empty, preserving existing behavior and data. The standard pre-migration DB
+backup applies. Retain the outgoing image and a WAL-safe backup before deployment;
+rollback follows the matching image/data procedure above.

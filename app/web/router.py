@@ -2765,6 +2765,8 @@ async def update_settings(
     remove_non_editorial_non_speech: bool | None = Form(None),
     minimum_retained_seconds: float | None = Form(None),
     language: str | None = Form(None),
+    missed_ad_examples: str | None = Form(None, max_length=20000),
+    missed_ad_examples_present: bool = Form(False),
     timeline_settings_present: bool = Form(False),
     user = Depends(require_auth),
 ):
@@ -2847,6 +2849,7 @@ async def update_settings(
         inherit_custom_instructions=inherit_custom_instructions,
         watermark_artwork=watermark_artwork,
         language=language,
+        missed_ad_examples=(missed_ad_examples or "") if missed_ad_examples_present else missed_ad_examples,
         processing_workflow=processing_workflow,
         inherit_processing_workflow=inherit_processing_workflow,
         remove_editorial_non_speech=remove_editorial_non_speech,

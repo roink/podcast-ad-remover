@@ -27,6 +27,10 @@ when nonempty. Global legacy free-form instructions are retired. Review instruct
 through definitions and category checkboxes. The fixed rules tell the model to classify every
 item, protect uncertain/mixed boundaries, and leave cut selection to the app.
 
+Optional per-podcast **Previously missed ads and promos** excerpts are documented
+in [the NAS fork guide](NAS_FORK.md#previously-missed-ads-and-promos). An empty
+field leaves classification unchanged; saved examples inform newly queued jobs.
+
 ## Boundaries and processing order
 
 The model returns inclusive `first_id` / `last_id` ranges covering every numbered item exactly

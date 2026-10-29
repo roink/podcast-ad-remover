@@ -49,6 +49,7 @@ async def preview_timeline_prompt(request: Request, admin=Depends(require_admin)
     current = get_global_settings()
     proposed = {**current, **prompt_updates(form, current)}
     custom = None
+    examples = None
     if form.get('preview_subscription_id'):
         try:
             sub = SubscriptionRepository().get_by_id(int(form['preview_subscription_id']))
@@ -57,7 +58,8 @@ async def preview_timeline_prompt(request: Request, admin=Depends(require_admin)
         if not sub:
             raise HTTPException(404, 'Podcast not found')
         custom = sub.custom_instructions
-    return {'system_prompt': timeline.build_prompt(proposed, custom),
+        examples = sub.missed_ad_examples
+    return {'system_prompt': timeline.build_prompt(proposed, custom, examples),
             'schema': timeline.SCHEMA, 'prompt_version': timeline.PROMPT_VERSION,
             'provider_settings': timeline.model_settings(proposed),
             'transcript_input': 'At processing time, the user message contains the complete numbered timeline, explicit gaps, measured duration and episode metadata. It is treated as source data.',

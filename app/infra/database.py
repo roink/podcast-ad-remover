@@ -473,6 +473,11 @@ FORMAL_MIGRATIONS.append(("20261029_0028_podcast_language", [
 ]))
 
 
+FORMAL_MIGRATIONS.append(("20261029_0029_missed_ad_examples", [
+    "ALTER TABLE subscriptions ADD COLUMN missed_ad_examples TEXT NOT NULL DEFAULT ''",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):
