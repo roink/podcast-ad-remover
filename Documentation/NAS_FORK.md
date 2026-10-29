@@ -82,3 +82,10 @@ Moonshine and 602 MiB for YAMNet, in separate processes. These are smoke-test
 measurements, not full-podcast accuracy or NAS memory acceptance. Representative
 English/German podcasts, music/jingle detection and final cut quality still need
 listening review. German model loading alone does not establish German accuracy.
+
+The full verification gate passed with 848 tests, CSS build and both dependency
+audits. The new module Ruff checks passed. Both desktop and 390px mobile form
+checks passed, including form submission data and the Save button state.
+
+![Desktop language selector](screenshots/nas-fork/language-desktop.png)
+![Mobile language selector](screenshots/nas-fork/language-mobile.png)
