@@ -40,3 +40,6 @@ tests/
 *.log
 debugfiles/
 temp_modeltests/
+
+!scripts/download_yamnet.py
+!scripts/download_moonshine.py

@@ -201,12 +201,15 @@ def prepare_timeline(transcript: dict, duration: float) -> tuple[list[dict], lis
         units.append({"kind": "GAP", "start": cursor, "end": duration, "text": ""})
     for i, unit in enumerate(units, 1):
         unit["id"] = i
+    if transcript.get("sound_evidence"):
+        from app.core.sound_events import add_evidence
+        units = add_evidence(units, transcript["sound_evidence"])
     return units, notes
 
 
 def source_message(units: list[dict], duration: float, metadata: dict) -> str:
     return json.dumps({**metadata, "duration_seconds": duration,
-                       "gap_evidence": "GAP means no transcript text, not measured silence. Infer purpose from context only.",
+                       "gap_evidence": "GAP means no transcript text, not measured silence. YAMNet sound_events are uncertain acoustic evidence, including music under speech; scores are not ad probabilities. Infer editorial purpose from context. Music, theme music and jingles are not automatically ads.",
                        "timeline": [{k: (round(v, 6) if isinstance(v, float) else v) for k, v in u.items() if k not in {"source_index", "source_indices"}} for u in units]},
                       ensure_ascii=False, separators=(",", ":"))
 

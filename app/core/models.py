@@ -30,6 +30,8 @@ class Subscription(SubscriptionBase):
     deletion_updated_at: Optional[datetime] = None
     deletion_error: Optional[str] = None
     
+    language: Literal["auto", "en", "de"] = "auto"
+
     # Granular Ad Removal Settings
     remove_ads: bool = True
     remove_promos: bool = True

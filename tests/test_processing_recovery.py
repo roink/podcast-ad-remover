@@ -129,7 +129,7 @@ async def test_pipeline_preserves_publication_on_feed_failure_and_failed_reproce
     claim = jobs.claim_due(1)[0]
     processor = Processor()
     processor.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
-    processor.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 1, 'text': 'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
+    processor.transcriber = SimpleNamespace(unload_model=lambda: None, transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 1, 'text': 'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
     monkeypatch.setattr(processor.ad_detector, 'classify_timeline', lambda units,*a: fixture_analysis(units,2))
     def fail_feed(*args):
         raise OSError('injected feed write failure')
@@ -201,7 +201,7 @@ async def test_retry_reuses_verified_transcription_and_analysis(episodes, tmp_pa
     for claim in (first,):
         worker = Processor()
         worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
-        worker.transcriber = SimpleNamespace(transcribe=transcribe)
+        worker.transcriber = SimpleNamespace(unload_model=lambda: None, transcribe=transcribe)
         monkeypatch.setattr(worker.ad_detector,'classify_timeline',detect)
         await worker._process_episode_inner(repo.get_by_id(claim['id']), sub, claim)
     assert repo.get_by_id(first['id']).status == 'failed'
@@ -220,3 +220,11 @@ def fixture_analysis(units, ad_id=None):
     response={'segments':[{'first_id':u['id'],'last_id':u['id'],'label':'Ad' if u['id']==ad_id else 'Content','reason':'Fixture'} for u in units], 'summary':'This episode includes discussion. It examines a topic.'}
     rows,summary=timeline.parse_response(json.dumps(response),units)
     return {'segments':rows,'summary':summary,'response':response,'provider':'fixture','model':'fixture'}
+
+
+@pytest.fixture(autouse=True)
+def synthetic_sound_analysis(monkeypatch):
+    from app.core import sound_events
+    from app.core.ai_services import Transcriber
+    from types import SimpleNamespace
+    monkeypatch.setattr(sound_events, 'analyze', lambda *a, **k: {'version': sound_events.VERSION, 'events': []})

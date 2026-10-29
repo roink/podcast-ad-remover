@@ -59,7 +59,7 @@ async def test_empty_removal_is_terminal_and_excluded_from_both_feeds(isolated_d
     monkeypatch.setattr(AudioProcessor, 'get_duration', lambda _: 10)
     monkeypatch.setattr(AudioProcessor, '_run_ffmpeg', lambda *a, **k: pytest.fail('FFmpeg invoked for empty audio'))
     worker = Processor()
-    worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 10, 'text': 'Advertising only.'}]})
+    worker.transcriber = SimpleNamespace(unload_model=lambda: None, transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 10, 'text': 'Advertising only.'}]})
     monkeypatch.setattr(worker.ad_detector, '_get_provider', lambda: SimpleNamespace(generate_structured=lambda *a: json.dumps({
         'segments': [{'first_id': 1, 'last_id': 1, 'label': 'Ad', 'reason': 'Promotion'}],
         'summary': 'This episode includes a promotion. It contains no editorial audio.'})))
@@ -105,7 +105,7 @@ async def test_exhausted_cascade_schedules_job_without_permanent_failure(episode
         return str(source)
     monkeypatch.setattr('app.core.processor.get_source_adapter', lambda _: SimpleNamespace(download=download))
     worker = Processor()
-    worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 4, 'text': 'Text'}]})
+    worker.transcriber = SimpleNamespace(unload_model=lambda: None, transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 4, 'text': 'Text'}]})
     monkeypatch.setattr(worker.ad_detector, 'classify_timeline', lambda *a, **k: instance.generate('test'))
     monkeypatch.setattr(AudioProcessor,'get_duration',lambda _:4)
     worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
@@ -117,3 +117,11 @@ async def test_exhausted_cascade_schedules_job_without_permanent_failure(episode
         job = conn.execute('SELECT * FROM jobs WHERE id=?', (claim['job_id'],)).fetchone()
     assert job['status'] == 'rate_limited' and job['provider_call_count'] == 0
     assert not calls
+
+
+@pytest.fixture(autouse=True)
+def synthetic_sound_analysis(monkeypatch):
+    from app.core import sound_events
+    from app.core.ai_services import Transcriber
+    from types import SimpleNamespace
+    monkeypatch.setattr(sound_events, 'analyze', lambda *a, **k: {'version': sound_events.VERSION, 'events': []})

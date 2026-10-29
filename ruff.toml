@@ -1,0 +1,5 @@
+# Scope formatting/linting to the fork's new modules and regression tests.
+include = ["app/core/sound_events.py", "app/core/yamnet_worker.py", "app/core/moonshine_transcription.py", "app/core/moonshine_worker.py", "scripts/download_yamnet.py", "scripts/download_moonshine.py", "tests/test_language_sound_events.py"]
+line-length = 100
+[lint]
+select = ["E4", "E7", "E9", "F"]

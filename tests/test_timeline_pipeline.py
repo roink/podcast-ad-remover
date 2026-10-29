@@ -123,7 +123,7 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
     claim = jobs.claim_due(1)[0]
     worker = Processor()
     worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
-    worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [
+    worker.transcriber = SimpleNamespace(unload_model=lambda: None, transcribe=lambda *a, **k: {'segments': [
         {'start': 0, 'end': 10, 'text': 'Welcome to the show.'},
         {'start': 10, 'end': 20, 'text': 'Listen to this sample to understand the rhythm.'},
         {'start': 30, 'end': 40, 'text': 'Buy a pillow at example.com.'},
@@ -164,3 +164,11 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
     assert Path(completed.local_filename).is_file()
     new_report = json.loads(Path(replacement.ad_report_path).read_text(encoding='utf-8'))
     assert [(r['start'], r['end']) for r in new_report['segments']] == [(30, 40), (50, 60)]
+
+
+@pytest.fixture(autouse=True)
+def synthetic_sound_analysis(monkeypatch):
+    from app.core import sound_events
+    from app.core.ai_services import Transcriber
+    from types import SimpleNamespace
+    monkeypatch.setattr(sound_events, 'analyze', lambda *a, **k: {'version': sound_events.VERSION, 'events': []})

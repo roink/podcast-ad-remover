@@ -673,6 +673,7 @@ Accepted PATCH fields (unknown fields are rejected):
 | Enhancements | `append_title_intro`, `ai_rewrite_description`, `ai_audio_summary`, `watermark_artwork` | Boolean. Requested speech preferences are retained even if speech is unconfigured; processing skips unavailable optional speech. |
 | Retention | `retention_days`, `manual_retention_days`, `retention_limit` | Integer `>=0`. Automatic retention uses `retention_limit` (keep newest N completed episodes); zero retains none and disables automatic downloads. Manual retention uses `manual_retention_days`; zero makes completed manual downloads immediately eligible for cleanup. `retention_days` is retained for compatibility but is not used by current episode cleanup. |
 | Inheritance | `inherit_content_removal`, `inherit_retention`, `inherit_default_features` | Boolean. |
+| Transcription | `language` | `auto` (default), `en` (English), or `de` (German). Applied to future processing; changing it invalidates normal transcription cache reuse. |
 | Guidance | `custom_instructions` | String; empty string or null clears it. Always applies when nonempty. |
 | Compatibility | `processing_workflow`, `inherit_processing_workflow`, `remove_editorial_non_speech`, `append_summary`, `inherit_custom_instructions` | Workflow only `complete_timeline`; inheritance is boolean; the last three accept only false. These are retained wire fields, not alternative processing modes. |
 

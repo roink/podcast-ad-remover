@@ -63,6 +63,7 @@ class SubscriptionSettingsUpdate(BaseModel):
     remove_promos: bool | None = None
     remove_intros: bool | None = None
     remove_outros: bool | None = None
+    language: Literal["auto", "en", "de"] | None = None
     custom_instructions: str | None = None
     append_summary: Literal[False] | None = None
     append_title_intro: bool | None = None

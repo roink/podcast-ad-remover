@@ -1,3 +1,5 @@
+> NAS fork: per-podcast language, Moonshine Small EN/DE and YAMNet evidence. See [fork operation and validation](Documentation/NAS_FORK.md).
+
 # Podcast Ad Remover
 
 **Less skipping. More listening. Your usual podcast player.**

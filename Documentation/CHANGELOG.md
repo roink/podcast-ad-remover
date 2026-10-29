@@ -1,5 +1,11 @@
 # Changelog
 
+## NAS fork (unreleased)
+
+- Per-podcast Automatic/English/German transcription selection.
+- Moonshine Small Streaming EN/DE CPU models with isolated lifetime.
+- Bounded YAMNet acoustic evidence merged into complete classification timelines.
+
 ## Unreleased
 
 ## 2.1.1 - 2026-10-17

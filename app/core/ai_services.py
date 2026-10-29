@@ -202,7 +202,11 @@ class Transcriber:
             load_duration = time.time() - start_load
             logger.info(f"Model loaded in {load_duration:.2f}s")
 
-    def transcribe(self, audio_path: str, progress_callback=None) -> Dict:
+    def transcribe(self, audio_path: str, progress_callback=None, language=None) -> Dict:
+        if os.environ.get('TRANSCRIPTION_ENGINE', 'whisper') == 'moonshine':
+            from app.core.moonshine_transcription import transcribe
+            self.unload_model()
+            return transcribe(audio_path, language, settings.MODELS_DIR, progress_callback)
         from app.core import cuda_runtime as cuda
         from app.core.cuda_setup import ready
         from app.core.cuda_client import GpuWorker, GpuFailure
@@ -215,7 +219,7 @@ class Transcriber:
             if self.gpu_worker is None:
                 self.gpu_worker = GpuWorker()
             try:
-                result = self.gpu_worker.request({'action': 'transcribe', 'runtime': runtime, 'audio': audio_path}, progress_callback)
+                result = self.gpu_worker.request({'action': 'transcribe', 'runtime': runtime, 'audio': audio_path, 'language': language}, progress_callback)
                 result['_execution'] = {'device': 'cuda', 'compute_type': runtime['whisper_cuda_compute_type'],
                                         'whisper_model': runtime['whisper_model'], 'cuda_bundle': cuda.MANIFEST['id']}
                 cuda.update_state(effective_device='cuda', effective_compute_type=runtime['whisper_cuda_compute_type'])
@@ -234,11 +238,11 @@ class Transcriber:
         if not requested_gpu and runtime.get('whisper_compute_type', 'float32') != precision:
             cuda.update_state(message='Saved CPU precision is unsupported on this hardware; using float32.')
         cuda.update_state(effective_device='cpu', effective_compute_type=precision)
-        result = self._transcribe_local(audio_path, progress_callback, runtime)
+        result = self._transcribe_local(audio_path, progress_callback, runtime, language=language)
         result['_execution'] = {'device': 'cpu', 'compute_type': precision, 'whisper_model': runtime['whisper_model']}
         return result
 
-    def _transcribe_local(self, audio_path: str, progress_callback=None, runtime_settings=None) -> Dict:
+    def _transcribe_local(self, audio_path: str, progress_callback=None, runtime_settings=None, language=None) -> Dict:
         from app.core.audio import AudioProcessor
 
         runtime_settings = runtime_settings or self._load_runtime_settings()
@@ -254,7 +258,7 @@ class Transcriber:
         chunk_threshold = 1200.0
         if audio_duration > chunk_threshold:
             logger.info("File exceeds duration threshold. Using chunked transcription.")
-            return self._transcribe_chunked(audio_path, audio_duration, progress_callback, ffmpeg_threads=ffmpeg_threads)
+            return self._transcribe_chunked(audio_path, audio_duration, progress_callback, ffmpeg_threads=ffmpeg_threads, language=language)
 
         # Prepare clean audio for transcription to avoid crashes with multi-stream files (MJPEG etc)
         # We use a temporary file for the clean audio
@@ -266,7 +270,7 @@ class Transcriber:
             # We transcribe the CLEAN audio path
             segments_generator, info = self.model.transcribe(
                 clean_audio_path,
-                beam_size=5
+                beam_size=5, language=language
             )
 
             logger.info(f"Detected language: {info.language} with probability {info.language_probability}")
@@ -315,7 +319,7 @@ class Transcriber:
                 except Exception as e:
                     logger.warning(f"Failed to cleanup temp audio: {e}")
 
-    def _transcribe_chunked(self, audio_path: str, total_duration: float, progress_callback=None, ffmpeg_threads: int = 0) -> Dict:
+    def _transcribe_chunked(self, audio_path: str, total_duration: float, progress_callback=None, ffmpeg_threads: int = 0, language=None) -> Dict:
         from app.core.audio import AudioProcessor
         from app.core.transcript_segments import merge_chunk_segments
 
@@ -356,7 +360,7 @@ class Transcriber:
                 logger.debug(f"Chunk {i} boundaries: {merge_start:.2f}s to {merge_end:.2f}s")
 
                 # Transcribe chunk
-                segments_generator, info = self.model.transcribe(chunk_path, beam_size=5)
+                segments_generator, info = self.model.transcribe(chunk_path, beam_size=5, language=language)
 
                 chunk_segments_count = 0
                 for segment in segments_generator:
@@ -395,7 +399,7 @@ class Transcriber:
             result = {
                 "text": "".join([s['text'] for s in all_segments]),
                 "segments": all_segments,
-                "language": "en" # Default or detected from first chunk?
+                "language": language or (info.language if chunk_paths else None)
             }
 
             logger.info(f"Chunked transcription complete. Found {len(all_segments)} total segments.")

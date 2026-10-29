@@ -2764,6 +2764,7 @@ async def update_settings(
     remove_editorial_non_speech: bool | None = Form(None),
     remove_non_editorial_non_speech: bool | None = Form(None),
     minimum_retained_seconds: float | None = Form(None),
+    language: str | None = Form(None),
     timeline_settings_present: bool = Form(False),
     user = Depends(require_auth),
 ):
@@ -2773,6 +2774,8 @@ async def update_settings(
     if not _can_manage_subscription(user, sub):
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
 
+    if language is not None and language not in {"auto", "en", "de"}:
+        raise HTTPException(status_code=422, detail="Unknown podcast language")
     if remove_editorial_non_speech or inherit_custom_instructions or append_summary:
         raise HTTPException(422, "Editorial removal and global classification guidance were retired in v2")
     remove_editorial_non_speech = False
@@ -2843,6 +2846,7 @@ async def update_settings(
         inherit_default_features=inherit_default_features,
         inherit_custom_instructions=inherit_custom_instructions,
         watermark_artwork=watermark_artwork,
+        language=language,
         processing_workflow=processing_workflow,
         inherit_processing_workflow=inherit_processing_workflow,
         remove_editorial_non_speech=remove_editorial_non_speech,

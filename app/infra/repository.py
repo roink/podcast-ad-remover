@@ -469,7 +469,10 @@ class SubscriptionRepository:
         remove_non_editorial_non_speech: bool | None = None,
         minimum_retained_seconds: float | None = None,
         keep_whole_show: bool | None = None,
+        language: str | None = None,
     ):
+        if language is not None and language not in {"auto", "en", "de"}:
+            raise ValueError("Unknown podcast language")
         from app.core.timeline import WORKFLOWS, threshold
         if processing_workflow is not None and processing_workflow not in WORKFLOWS:
             raise ValueError("Unknown processing workflow")
@@ -504,7 +507,8 @@ class SubscriptionRepository:
                     inherit_processing_workflow = COALESCE(?, inherit_processing_workflow),
                     remove_editorial_non_speech = COALESCE(?, remove_editorial_non_speech),
                     remove_non_editorial_non_speech = COALESCE(?, remove_non_editorial_non_speech),
-                    minimum_retained_seconds = COALESCE(?, minimum_retained_seconds)
+                    minimum_retained_seconds = COALESCE(?, minimum_retained_seconds),
+                    language = COALESCE(?, language)
                 WHERE id = ?
             """, (
                 remove_ads,
@@ -529,6 +533,7 @@ class SubscriptionRepository:
                 remove_editorial_non_speech,
                 remove_non_editorial_non_speech,
                 minimum_retained_seconds,
+                language,
                 id,
             ))
             if keep_whole_show is not None:

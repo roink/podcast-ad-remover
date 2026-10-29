@@ -19,7 +19,11 @@ bcrypt
 itsdangerous
 
 # Cross-process feed publication lock (also used transitively by model tooling).
-filelock>=3.20,<4
+filelock>=4.2.1,<5
 
 # zoneinfo fallback data for minimal containers and Windows.
 tzdata
+
+# Isolated YAMNet CPU inference.
+tensorflow-cpu==2.20.0
+moonshine-voice==0.1.5

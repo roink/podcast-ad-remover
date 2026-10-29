@@ -48,7 +48,7 @@ def main():
                 result = {'supported': supported, 'precision': precision}
             elif command['action'] == 'transcribe':
                 result = transcriber._transcribe_local(command['audio'],
-                    lambda current, total: emit({'progress': [current, total]}), runtime)
+                    lambda current, total: emit({'progress': [current, total]}), runtime, language=command.get('language'))
             else:
                 raise ValueError('Unknown GPU worker action')
             emit({'result': result})

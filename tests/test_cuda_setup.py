@@ -111,7 +111,7 @@ def test_gpu_failure_retries_cpu_once_and_quarantines(configured, monkeypatch):
         def dispose(self): pass
     monkeypatch.setattr(cuda_client, 'GpuWorker', Worker)
     t = Transcriber()
-    def cpu(audio, callback, runtime):
+    def cpu(audio, callback, runtime, language=None):
         calls.append(runtime['whisper_compute_type']); return {'segments': [], 'text': ''}
     monkeypatch.setattr(t, '_transcribe_local', cpu)
     assert t.transcribe('fixture')['_execution']['device'] == 'cpu'

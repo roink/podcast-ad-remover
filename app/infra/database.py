@@ -468,6 +468,11 @@ FORMAL_MIGRATIONS.append(("20261010_0027_pause_statistics", [
 ]))
 
 
+FORMAL_MIGRATIONS.append(("20261029_0028_podcast_language", [
+    "ALTER TABLE subscriptions ADD COLUMN language TEXT NOT NULL DEFAULT 'auto' CHECK(language IN ('auto','en','de'))",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):

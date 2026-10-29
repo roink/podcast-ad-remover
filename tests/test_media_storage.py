@@ -210,7 +210,7 @@ def test_pipeline_publishes_to_media_and_keeps_metadata_local(storage, tmp_path,
     jobs=JobRepository(); jobs.enqueue(90); claim=jobs.claim_due(1)[0]
     processor=Processor()
     processor.ep_repo=EpisodeRepository(attempt=(claim['job_id'],claim['claim_token']))
-    processor.transcriber=SimpleNamespace(transcribe=lambda *a,**k:{'segments':[{'start':0,'end':1,'text':'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
+    processor.transcriber=SimpleNamespace(unload_model=lambda: None, transcribe=lambda *a,**k:{'segments':[{'start':0,'end':1,'text':'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
     monkeypatch.setattr(processor.ad_detector,'classify_timeline',lambda units,*a:fixture_analysis(units,2))
     if failure == 'stage':
         def fail_stage(*args):
@@ -336,3 +336,11 @@ def test_legacy_guid_migration_resume_playback_and_cleanup(storage, guid):
     assert media.state()['status'] == 'complete'
     assert not path.exists()
     assert _resolve_audio_file_path(key).read_bytes() == b'legacy published audio'
+
+
+@pytest.fixture(autouse=True)
+def synthetic_sound_analysis(monkeypatch):
+    from app.core import sound_events
+    from app.core.ai_services import Transcriber
+    from types import SimpleNamespace
+    monkeypatch.setattr(sound_events, 'analyze', lambda *a, **k: {'version': sound_events.VERSION, 'events': []})

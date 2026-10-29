@@ -45,7 +45,7 @@ async def test_analysis_timeout_schedules_durable_retries_then_notifies(episodes
     monkeypatch.setattr(AudioProcessor, 'get_duration', lambda _: 4)
     worker = Processor()
     worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
-    worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 4, 'text': 'Text'}]})
+    worker.transcriber = SimpleNamespace(unload_model=lambda: None, transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 4, 'text': 'Text'}]})
     monkeypatch.setattr(worker.ad_detector, 'classify_timeline', timeout)
     await worker._process_episode_inner(repo.get_by_id(90), SubscriptionRepository().get_by_id(90), claim)
 
@@ -107,3 +107,11 @@ def test_timeout_default_and_explicit_override(monkeypatch):
     assert Settings(_env_file=None).PROVIDER_TIMEOUT_SECONDS == 300
     monkeypatch.setenv('PROVIDER_TIMEOUT_SECONDS', '480')
     assert Settings(_env_file=None).PROVIDER_TIMEOUT_SECONDS == 480
+
+
+@pytest.fixture(autouse=True)
+def synthetic_sound_analysis(monkeypatch):
+    from app.core import sound_events
+    from app.core.ai_services import Transcriber
+    from types import SimpleNamespace
+    monkeypatch.setattr(sound_events, 'analyze', lambda *a, **k: {'version': sound_events.VERSION, 'events': []})

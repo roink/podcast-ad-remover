@@ -4,7 +4,8 @@ FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41
 
 # Keep Python quiet and avoid writing .pyc files into the container layer.
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TRANSCRIPTION_ENGINE=moonshine
 
 # Install runtime system dependencies. FFmpeg is required for audio processing.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,6 +26,9 @@ RUN python -m pip install --no-cache-dir --upgrade -r requirements-build.txt \
 
 # Copy application code
 COPY . .
+
+RUN python scripts/download_yamnet.py /opt/yamnet \
+    && python scripts/download_moonshine.py /opt/moonshine
 
 # Create data directories
 RUN mkdir -p /data/db /data/podcasts /data/feeds /data/models

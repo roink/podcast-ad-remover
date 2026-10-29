@@ -718,7 +718,7 @@ class Processor:
             if transcript:
                 provenance = transcript.get('_source', {}) if isinstance(transcript, dict) else {}
                 from app.core.transcription_settings import provenance_matches
-                if not skip_transcription and (provenance.get('sha256') != fingerprint or provenance.get('whisper_model') != global_settings.get('whisper_model', settings.WHISPER_MODEL) or not provenance_matches(provenance, global_settings)):
+                if not skip_transcription and (provenance.get('engine', 'whisper') != os.environ.get('TRANSCRIPTION_ENGINE', 'whisper') or provenance.get('language_hint', 'auto') != sub.language or provenance.get('sha256') != fingerprint or provenance.get('whisper_model') != global_settings.get('whisper_model', settings.WHISPER_MODEL) or (os.environ.get('TRANSCRIPTION_ENGINE', 'whisper') == 'whisper' and not provenance_matches(provenance, global_settings))):
                     logger.info("Source or transcription settings changed; transcribing again")
                     transcript = None
             self.ep_repo.update_source_media_path(ep.id, input_path)
@@ -769,7 +769,7 @@ class Processor:
 
                 try:
                     transcript = await asyncio.to_thread(
-                        self.transcriber.transcribe, input_path, progress_callback=transcribe_progress
+                        self.transcriber.transcribe, input_path, progress_callback=transcribe_progress, language=None if sub.language == "auto" else sub.language
                     )
                 except Exception as e:
                     # Catch cancellation exception from thread
@@ -790,7 +790,7 @@ class Processor:
                 self.ep_repo.transcription_seconds = duration
                 logger.info(f"Transcription complete in {duration:.1f}s")
                 
-                transcript['_source'] = {'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL), **transcript.pop('_execution', {'device': 'cpu', 'compute_type': 'float32'})}
+                transcript['_source'] = {'language_hint': sub.language, 'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL), **transcript.pop('_execution', {'device': 'cpu', 'compute_type': 'float32'})}
                 # Save Transcript (Prefer JSON now)
                 transcript_path = os.path.join(episode_dir, "transcript.json")
                 async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
@@ -802,6 +802,17 @@ class Processor:
                     await handle.write(json.dumps(transcript))
             self.ep_repo.update_progress(ep.id, "detecting_ads", 50, transcript_path=transcript_path)
             
+            if not self._check_cancellation(ep): return
+
+            from app.core import sound_events
+            if transcript.get('sound_evidence', {}).get('version') != sound_events.VERSION:
+                self.ep_repo.update_progress(ep.id, "analyzing_audio", 45)
+                await asyncio.to_thread(self.transcriber.unload_model)
+                transcript['sound_evidence'] = await asyncio.to_thread(
+                    sound_events.analyze, input_path, settings.MODELS_DIR,
+                    int(global_settings.get('ffmpeg_threads') or 2))
+                async with aiofiles.open(transcript_path, 'w', encoding='utf-8') as handle:
+                    await handle.write(json.dumps(transcript))
             if not self._check_cancellation(ep): return
 
             # Classify the complete timeline, then deterministically choose cuts.
