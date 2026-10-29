@@ -2,6 +2,8 @@
 
 ## NAS fork (unreleased)
 
+- Maintain `nas` with production-branch update proposals, verified fork images and explicit digest-pinned NAS deployments.
+
 - Optional per-podcast missed ad/promo examples in settings and the classifier prompt, with unchanged empty defaults.
 
 - Per-podcast Automatic/English/German transcription selection.

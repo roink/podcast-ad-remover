@@ -41,6 +41,9 @@ upstream Whisper path and honors the same podcast language hint on CPU/CUDA and
 long-episode chunking. Whisper settings in the upstream System UI apply only to
 that fallback, not the Moonshine model selection.
 
+For ongoing updates and reproducible deployments, follow
+[NAS maintenance](NAS_MAINTENANCE.md).
+
 ## Build and verify
 
 Use Python 3.11 and the Node/npm environment described in VERIFICATION.md:

@@ -1,5 +1,19 @@
 # Agent Guide
 
+## NAS fork maintenance takes precedence here
+
+In `roink/podcast-ad-remover`, `nas` is the durable integration/default branch.
+Read `Documentation/NAS_MAINTENANCE.md` before fork maintenance. Start feature
+branches from `nas` and open PRs only against this fork, targeting `nas`. Merge
+upstream production (`jdcb4/podcast-ad-remover` `main`) through reviewed update
+branches; preserve deployed history. Do not open upstream PRs. The upstream
+`dev`/`main`, Joe approval and Docker Hub instructions below describe upstream
+contributions/releases, not this fork. Do not push those upstream branches,
+Docker Hub release tags, or upstream Pages. CI may publish only the fork
+GHCR `nas-<commit>` image. NAS deployment is explicit through `nas_release.py`;
+CI and scheduled update proposals never contact the NAS or access production data.
+
+
 This file is the first stop for coding agents and maintainers working on Podcast Ad Remover.
 
 ## Project Shape

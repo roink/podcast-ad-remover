@@ -1,0 +1,28 @@
+name: Propose upstream production update
+on:
+  schedule:
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+concurrency:
+  group: nas-upstream
+  cancel-in-progress: false
+jobs:
+  propose:
+    if: github.repository == 'roink/podcast-ad-remover' && github.ref == 'refs/heads/nas'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: nas
+          fetch-depth: 0
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Propose update in this fork
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/nas_upstream.py

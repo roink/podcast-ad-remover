@@ -1,5 +1,9 @@
 # Contributing to Podcast Ad Remover
 
+This NAS fork follows [NAS maintenance](Documentation/NAS_MAINTENANCE.md):
+feature/update PRs target `roink/podcast-ad-remover:nas`. Do not open upstream PRs.
+The remaining contribution/release instructions describe the upstream project.
+
 Thank you for your interest in contributing to Podcast Ad Remover! This project is a "vibe-coded" personal tool that has grown into something useful for the community. We welcome contributions of all kinds.
 
 ## How to Contribute

@@ -1,0 +1,61 @@
+name: NAS candidate
+on:
+  push:
+    branches: [nas]
+  pull_request:
+    branches: [nas]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nas-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+    permissions:
+      contents: read
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build candidate with source identity
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          docker build --label org.opencontainers.image.revision="$REVISION" \
+            --label org.opencontainers.image.source=https://github.com/roink/podcast-ad-remover \
+            --label io.par.channel=nas -t nas-candidate .
+      - name: Offline smoke check against disposable data
+        run: docker run --rm --network=none --memory=2g --cpus=2 --entrypoint python nas-candidate scripts/container_smoke.py
+      - name: Publish immutable fork image
+        if: github.repository == 'roink/podcast-ad-remover' && github.ref == 'refs/heads/nas' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ github.sha }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          IMAGE="ghcr.io/roink/podcast-ad-remover:nas-$REVISION"
+          docker tag nas-candidate "$IMAGE"
+          docker push "$IMAGE"
+          docker image inspect "$IMAGE" > /tmp/nas-image.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          info = json.loads(Path('/tmp/nas-image.json').read_text())[0]
+          digest = next(d for d in info['RepoDigests'] if d.startswith('ghcr.io/roink/podcast-ad-remover@sha256:'))
+          Path('nas-release.json').write_text(json.dumps({'schema': 1, 'revision': os.environ['REVISION'], 'image': digest, 'image_id': info['Id']}, indent=2) + '\n')
+          PY
+          docker logout ghcr.io
+      - uses: actions/upload-artifact@v4
+        if: github.repository == 'roink/podcast-ad-remover' && github.ref == 'refs/heads/nas' && github.event_name != 'pull_request'
+        with:
+          name: nas-release
+          path: nas-release.json
+          retention-days: 90
+          if-no-files-found: error

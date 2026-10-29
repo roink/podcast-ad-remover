@@ -1,0 +1,6 @@
+{
+  "fork_repository": "roink/podcast-ad-remover",
+  "upstream_repository": "jdcb4/podcast-ad-remover",
+  "upstream_branch": "main",
+  "image_repository": "ghcr.io/roink/podcast-ad-remover"
+}

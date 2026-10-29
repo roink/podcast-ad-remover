@@ -1,3 +1,6 @@
+> **NAS fork:** Moonshine, YAMNet and missed-ad examples are maintained on `nas`.
+> See [maintenance and deployment](Documentation/NAS_MAINTENANCE.md).
+
 > NAS fork: per-podcast language, Moonshine Small EN/DE and YAMNet evidence. See [fork operation and validation](Documentation/NAS_FORK.md).
 
 # Podcast Ad Remover

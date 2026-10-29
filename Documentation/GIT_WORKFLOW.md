@@ -1,5 +1,8 @@
 # Git workflow
 
+For this NAS fork, use [NAS maintenance](NAS_MAINTENANCE.md). `nas` is its
+default/integration branch. The `dev`/`main` workflow below describes upstream.
+
 ## Branches and checks
 
 | Ref | Purpose | Lifetime |
