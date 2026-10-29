@@ -191,3 +191,152 @@ def test_failed_start_keeps_processing_paused(staged_release, monkeypatch):
         installer.install(staging, 0)
     assert installer.status()["processing_paused"]
     assert list(db.parent.glob("deployments/*/needs-review"))
+
+
+def test_automerge_only_tested_bot_upstream_proposal():
+    from scripts.nas_automerge import eligible
+
+    run = {
+        "conclusion": "success",
+        "head_repository": {"full_name": "roink/podcast-ad-remover"},
+        "path": ".github/workflows/nas-ci.yml",
+        "head_branch": "update/upstream-123",
+        "head_sha": SHA,
+    }
+    pr = {
+        "author": {"login": "github-actions[bot]"},
+        "isDraft": False,
+        "state": "OPEN",
+        "baseRefName": "nas",
+        "headRefName": run["head_branch"],
+        "headRefOid": SHA,
+    }
+    assert eligible(run, pr)
+    for key, value in [
+        ("conclusion", "failure"),
+        ("head_sha", "c" * 40),
+        ("head_branch", "feature/something"),
+        ("head_repository", {"full_name": "untrusted/fork"}),
+    ]:
+        assert not eligible({**run, key: value}, pr)
+    for key, value in [
+        ("isDraft", True),
+        ("author", {"login": "human"}),
+        ("state", "CLOSED"),
+        ("baseRefName", "main"),
+    ]:
+        assert not eligible(run, {**pr, key: value})
+
+
+def test_public_build_qualification_and_checksums(tmp_path):
+    from scripts import nas_poll as poll
+
+    run = {
+        "conclusion": "success",
+        "head_branch": "nas",
+        "event": "push",
+        "head_sha": SHA,
+        "path": ".github/workflows/nas-ci.yml",
+        "repository": {"full_name": poll.REPOSITORY},
+        "id": 123,
+        "run_attempt": 1,
+    }
+    manifest = {
+        **MANIFEST,
+        "ci_run_id": 123,
+        "ci_run_attempt": 1,
+        "archive_sha256": "d" * 64,
+        "source_sha256": "e" * 64,
+    }
+    poll.qualified(run, manifest)
+    for key, value in [
+        ("conclusion", "failure"),
+        ("head_branch", "update/upstream-123"),
+        ("head_sha", "c" * 40),
+        ("id", 124),
+        ("run_attempt", 2),
+    ]:
+        with pytest.raises(ValueError):
+            poll.qualified({**run, key: value}, manifest)
+    data = tmp_path / "download"
+    data.write_text("corrupt build")
+    with pytest.raises(ValueError, match="checksum"):
+        poll.checksum(data, "d" * 64)
+
+
+def test_source_extraction_rejects_traversal_and_links(tmp_path):
+    import io
+    import tarfile
+    from scripts import nas_poll as poll
+
+    for name, kind in [("../outside", tarfile.REGTYPE), ("link", tarfile.SYMTYPE)]:
+        archive = tmp_path / "source.tar"
+        with tarfile.open(archive, "w") as tar:
+            entry = tarfile.TarInfo(name)
+            entry.type = kind
+            entry.linkname = "/etc"
+            tar.addfile(entry, io.BytesIO())
+        with pytest.raises(ValueError, match="Unsafe"):
+            poll.extract_source(archive, tmp_path / "extracted")
+    assert not (tmp_path / "outside").exists()
+
+
+@pytest.fixture
+def pending_poll(tmp_path, monkeypatch):
+    from scripts import nas_poll as poll
+
+    monkeypatch.setattr(poll, "STATE", tmp_path)
+    pending = {
+        "release": MANIFEST,
+        "run_number": 1,
+        "staging": str(tmp_path / "staging"),
+        "previous_pause": False,
+    }
+    poll.write(tmp_path / "pending.json", pending)
+    monkeypatch.setattr(poll, "current_image", lambda: "old-image")
+    monkeypatch.setattr(installer, "status", lambda: {"running_jobs": 1, "processing_paused": True})
+    pauses = []
+    installs = []
+    monkeypatch.setattr(installer, "pause", pauses.append)
+    monkeypatch.setattr(installer, "install", lambda *args: installs.append(args))
+    monkeypatch.setattr(installer, "run", lambda *args: "")
+    return poll, pending, pauses, installs
+
+
+def test_poll_drain_persists_then_restores_original_state(pending_poll, monkeypatch):
+    poll, pending, pauses, installs = pending_poll
+    poll.poll()
+    assert pauses == [True]
+    assert installs == []
+    assert (poll.STATE / "pending.json").exists()
+    monkeypatch.setattr(installer, "status", lambda: {"running_jobs": 0, "processing_paused": True})
+    poll.poll()
+    assert len(installs) == 1
+    assert pauses[-1] is False
+    assert not (poll.STATE / "pending.json").exists()
+    assert json.loads((poll.STATE / "installed.json").read_text())["revision"] == SHA
+
+
+def test_poll_install_failure_blocks_further_attempts(pending_poll, monkeypatch):
+    poll, pending, pauses, installs = pending_poll
+    monkeypatch.setattr(installer, "status", lambda: {"running_jobs": 0, "processing_paused": True})
+
+    def failure(*args):
+        raise RuntimeError("Synthetic migration/start failure")
+
+    monkeypatch.setattr(installer, "install", failure)
+    with pytest.raises(RuntimeError, match="Synthetic"):
+        poll.poll()
+    assert (poll.STATE / "blocked.json").exists()
+    assert pauses[-1] is True
+    with pytest.raises(RuntimeError, match="Prior installation failed"):
+        poll.poll()
+
+
+def test_poll_crash_after_install_resumes_without_reinstalling(pending_poll, monkeypatch):
+    poll, pending, pauses, installs = pending_poll
+    monkeypatch.setattr(poll, "current_image", lambda: IMAGE.removeprefix("sha256:"))
+    poll.poll()
+    assert installs == []
+    assert pauses == [False]
+    assert (poll.STATE / "installed.json").exists()

@@ -1,0 +1,25 @@
+name: Merge qualified upstream update
+on:
+  workflow_run:
+    workflows: ['NAS candidate']
+    types: [completed]
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+concurrency:
+  group: nas-upstream-merge
+  cancel-in-progress: false
+jobs:
+  merge:
+    if: github.repository == 'roink/podcast-ad-remover' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'update/upstream-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: nas
+          persist-credentials: false
+      - name: Merge only the tested bot proposal
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/nas_automerge.py

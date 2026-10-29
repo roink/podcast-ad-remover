@@ -10,8 +10,11 @@ branches; preserve deployed history. Do not open upstream PRs. The upstream
 `dev`/`main`, Joe approval and Docker Hub instructions below describe upstream
 contributions/releases, not this fork. Do not push those upstream branches,
 Docker Hub release tags, or upstream Pages. CI may publish only the fork
-GHCR `nas-<commit>` image. NAS deployment is explicit through `nas_release.py`;
-CI and scheduled update proposals never contact the NAS or access production data.
+GHCR `nas-<commit>` image and public NAS build assets in this fork. User-authorized
+automation merges only tested bot upstream PRs; the NAS polls successful builds
+and drains current work before installation through `nas_poll.py`. Failed checks,
+conflicts and failed installations stop automatic progress. CI never contacts the
+NAS or accesses production data. `nas_release.py` remains a manual fallback.
 
 
 This file is the first stop for coding agents and maintainers working on Podcast Ad Remover.

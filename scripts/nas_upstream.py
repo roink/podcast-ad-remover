@@ -44,11 +44,15 @@ def propose(config):
             "--head",
             branch,
             "--json",
-            "url,state",
+            "url,state,number,isDraft,mergeStateStatus",
         )
     )
     if existing:
-        print("Existing proposal (closed proposals are not reopened):", existing[0]["url"])
+        pr = existing[0]
+        print("Existing proposal (closed proposals are not reopened):", pr["url"])
+        if pr["state"] == "OPEN" and not pr["isDraft"] and pr["mergeStateStatus"] == "BEHIND":
+            gh(fork, "pr", "update-branch", str(pr["number"]))
+            gh(fork, "workflow", "run", "nas-ci.yml", "--ref", branch)
         return
     # No force pushes: a prior interrupted attempt is preserved for inspection.
     if git("ls-remote", "--heads", "origin", branch).stdout.strip():
@@ -70,7 +74,7 @@ def propose(config):
     body = (
         f"Merge `{upstream}` production branch `{config['upstream_branch']}` at `{revision}` "
         "into the NAS fork.\n\nKeep Moonshine/languages, YAMNet evidence and missed examples. "
-        "Review database migrations and dependency changes. Nothing deploys to the NAS automatically.\n"
+        "Clean updates merge automatically after required checks; the NAS installs successful builds after draining current work. Conflicts and failed checks require review.\n"
     )
     if conflict:
         body += (

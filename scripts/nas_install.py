@@ -23,6 +23,10 @@ CURRENT = "localhost/nas-apps/podcast-ad-remover:current"
 SERVICE = "podcast-ad-remover.service"
 
 
+class Deferred(RuntimeError):
+    """Current work must finish before installation can proceed."""
+
+
 def run(*args, timeout=900):
     return subprocess.check_output(args, text=True, timeout=timeout).strip()
 
@@ -97,7 +101,7 @@ def install(staging, wait_seconds, restart_job=False):
             if restart_job:
                 break
             if time.monotonic() >= deadline:
-                raise RuntimeError(
+                raise Deferred(
                     "Job still running; installation deferred and original pause setting restored"
                 )
             time.sleep(2)
