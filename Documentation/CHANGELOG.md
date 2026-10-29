@@ -2,6 +2,8 @@
 
 ## NAS fork (unreleased)
 
+- Automatically merge tested upstream bot proposals and install successful fork builds on the NAS after draining active jobs, using public checksummed build assets.
+
 - Maintain `nas` with production-branch update proposals, verified fork images and explicit digest-pinned NAS deployments.
 
 - Optional per-podcast missed ad/promo examples in settings and the classifier prompt, with unchanged empty defaults.

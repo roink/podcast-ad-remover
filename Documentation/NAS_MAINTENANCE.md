@@ -44,14 +44,19 @@ the complete image for PRs. No PR build publishes or deploys an image.
 ## Upstream proposals
 
 `nas/maintenance.json` records the fork, upstream production branch (`main`) and
-fork GHCR image repository. The weekly **Propose upstream production update**
+fork GHCR image repository. Every six hours, **Propose upstream production update**
 workflow fetches that branch and skips revisions already contained in `nas`.
 It creates a `update/upstream-<sha>` branch and a PR **inside this fork**. This tracks
 upstream's production branch, not its development branch; upstream's version and
-migration changes still require review. It does not automatically merge updates.
+migration changes still require review. Successful bot-created upstream proposals merge automatically after required checks.
 
 A clean merge is committed on the proposal branch and CI is explicitly dispatched
-because GitHub-token-created PRs/pushes do not trigger ordinary workflows. A
+because GitHub-token-created PRs/pushes do not trigger ordinary workflows.
+A separate workflow on the protected `nas` branch checks the successful run, exact
+head, fork, PR author and upstream-update branch before merging without bypassing
+protection. It explicitly dispatches the resulting `nas` build. Unrelated feature
+PRs, drafts, stale heads and failed checks are not automatically merged. Existing
+clean proposals that fall behind `nas` are refreshed and retested on a later check. A
 conflicting merge produces a draft PR pointing at the exact upstream commit;
 GitHub shows conflicts with `nas`. No NAS changes are thrown away. Resolve the
 conflicts on that proposal branch, preserving both histories, then push and mark
@@ -64,9 +69,10 @@ The workflow can also be started manually:
 gh workflow run nas-upstream.yml --repo roink/podcast-ad-remover --ref nas
 ```
 
-Review migrations/backups, dependency/model changes and the custom-feature tests.
-Run synthetic/local model qualification when inference paths change. CI does not
-measure real episode accuracy or NAS peak RAM. Merge only after checks pass.
+Conflicts and failed checks need manual review. CI cannot prove real episode
+accuracy or NAS peak RAM; inspect changes and listen to processed episodes when
+upstream changes classification or inference. Passing updates deploy automatically
+under the user-authorized policy below.
 
 ## Image identity and CI
 
@@ -86,9 +92,55 @@ pull, then uses your workstation's `gh` credential in a temporary Docker config.
 That credential needs package read access if the package is private. No registry
 credential or production secret is sent to GitHub CI or installed on the NAS.
 The workflow's short-lived GitHub token publishes images. Build publication is
-automatic; installation is an explicit operator action.
+automatic. The NAS uses the public build assets below without a registry login.
 
-## Deploy from the workstation
+## Automatic NAS installation
+
+After tests, container build and offline smoke checks, successful `nas` builds also
+publish fork prereleases named `nas-build-<run-id>-<attempt>` (not upstream release
+versions or the latest stable release). Assets contain the source archive, image
+archive and `nas-release.json`, with checksums and exact workflow/source/image
+identities. Source and images contain no NAS credentials or live data. Assets
+are public so the NAS requires no GitHub token or registry credential.
+
+`nas-podcast-update.timer` checks every 15 minutes, with up to two minutes of
+random delay. The host-side `nas_poll.py` uses only successful `NAS candidate`
+runs on `nas`, verifies the matching release manifest, checks downloaded hashes
+and loaded image source identity, and never goes back to an older installed run.
+An asset upload alone cannot trigger installation before its workflow succeeds.
+
+The updater downloads and loads the candidate before pausing any work. It then
+records the original pause state in durable `pending.json`, pauses new jobs and
+lets the current episode finish. Subsequent checks install once no jobs are
+running, then restore the original pause setting. The NAS/workstation need not
+stay connected to each other. It never restarts an active episode automatically.
+A failed installation writes `blocked.json` and leaves processing paused for
+review with the matching recovery point. It does not repeatedly retry a migrated
+database or automatically restore old data. Network/download failures before
+staging completes do not pause processing. Manual feature PRs still need merging;
+their successful `nas` build then follows this same automatic installation path.
+
+Host programs are installed in `/usr/local/lib/nas-podcast-maintenance/` and the
+units in `/etc/systemd/system/`. Host updater changes are installed deliberately
+from reviewed source; application image updates do not replace the running host
+maintenance programs. State is under
+`/tank/services/compose/updates/podcast-fork/`; build/recovery files stay on the NAS.
+Keep the host programs and this guide together when upgrading maintenance itself.
+
+```bash
+sudo systemctl list-timers nas-podcast-update.timer
+sudo journalctl -u nas-podcast-update.service -n 30 --no-pager
+sudo python3 /usr/local/lib/nas-podcast-maintenance/nas_poll.py --check
+```
+
+To suspend automatic installation, stop/disable `nas-podcast-update.timer`. If a
+candidate is already draining, inspect `pending.json` and deliberately restore its
+`previous_pause` value before abandoning it; disabling the timer alone does not
+alter application pause state. Review `blocked.json` and the recorded recovery
+point before clearing a failed-installation block. Never blindly unpause or
+restore a shared dataset.
+
+## Manual deployment fallback from the workstation
 
 Requires Git, GitHub CLI authenticated to the fork, Docker, SSH and passwordless
 sudo on the NAS. Host/user is supplied explicitly and is not committed as config.
@@ -124,8 +176,8 @@ that may already have migrated. Retrying the same source-context path requires
 inspection rather than overwriting it. Staging/recovery copies remain on the NAS.
 
 Existing published episodes and frozen queued snapshots are preserved. The NAS
-continues to run the reviewed local image with `Pull=never`; scheduled source
-updates do not contact it. Podcast monthly rebuilding is disabled in the NAS
+continues to run the reviewed local image with `Pull=never`; GitHub CI never
+contacts it; its own timer downloads only qualified fork builds. Podcast monthly rebuilding is disabled in the NAS
 maintenance policy (`rebuild: false`) so it cannot replace a tested image with an
 untested rebuild. Other services retain their existing schedules.
 

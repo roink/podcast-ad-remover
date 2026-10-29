@@ -74,7 +74,7 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
-- `Documentation/NAS_MAINTENANCE.md`: NAS fork branch, upstream proposals, CI images and explicit deployment.
+- `Documentation/NAS_MAINTENANCE.md`: NAS fork branch, tested upstream auto-merges, CI images and guarded automatic/manual deployments.
 
 - `Documentation/PROCESSING_CONTROLS.md`: admin pause controls, personal/global unified feeds and durable statistics.
 

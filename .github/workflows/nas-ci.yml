@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: read
       packages: write
+      contents: write
     steps:
       - uses: actions/checkout@v6
       - name: Build candidate with source identity
@@ -52,6 +52,30 @@ jobs:
           Path('nas-release.json').write_text(json.dumps({'schema': 1, 'revision': os.environ['REVISION'], 'image': digest, 'image_id': info['Id']}, indent=2) + '\n')
           PY
           docker logout ghcr.io
+      - name: Publish credential-free NAS download
+        if: github.repository == 'roink/podcast-ad-remover' && github.ref == 'refs/heads/nas' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ github.sha }}
+        run: |
+          docker save nas-candidate | gzip -1 > nas-image.tar.gz
+          git archive --format=tar.gz --output=nas-source.tar.gz "$REVISION"
+          python - <<'PYTHON'
+          import hashlib, json, os
+          from pathlib import Path
+          p = Path('nas-release.json')
+          release = json.loads(p.read_text())
+          release.update(ci_run_id=int(os.environ['GITHUB_RUN_ID']), ci_run_attempt=int(os.environ['GITHUB_RUN_ATTEMPT']))
+          for key, name in [('archive_sha256', 'nas-image.tar.gz'), ('source_sha256', 'nas-source.tar.gz')]:
+              with open(name, 'rb') as stream:
+                  release[key] = hashlib.file_digest(stream, 'sha256').hexdigest()
+          p.write_text(json.dumps(release, indent=2) + '\n')
+          PYTHON
+          TAG="nas-build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          gh release create "$TAG" nas-release.json nas-image.tar.gz nas-source.tar.gz \
+            --repo roink/podcast-ad-remover --target "$REVISION" --prerelease --latest=false \
+            --title "NAS build $GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT" \
+            --notes 'Automatically tested NAS fork build. The NAS verifies the successful workflow before installing.'
       - uses: actions/upload-artifact@v4
         if: github.repository == 'roink/podcast-ad-remover' && github.ref == 'refs/heads/nas' && github.event_name != 'pull_request'
         with:
