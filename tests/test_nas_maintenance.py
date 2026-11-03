@@ -340,3 +340,152 @@ def test_poll_crash_after_install_resumes_without_reinstalling(pending_poll, mon
     assert installs == []
     assert pauses == [False]
     assert (poll.STATE / "installed.json").exists()
+
+
+@pytest.fixture
+def exported_image(tmp_path):
+    import hashlib
+    import io
+    import tarfile
+
+    def build(*, oci=True, index=True, wrong_config=False, corrupt=False, platforms=1):
+        files = {}
+
+        def blob(value):
+            data = json.dumps(value).encode()
+            digest = "sha256:" + hashlib.sha256(data).hexdigest()
+            files["blobs/sha256/" + digest.split(":")[1]] = data
+            return digest
+
+        config_id = blob(
+            {
+                "architecture": "amd64",
+                "os": "linux",
+                "config": {"Labels": {"org.opencontainers.image.revision": SHA}},
+            }
+        )
+        manifest_id = blob(
+            {"config": {"digest": "sha256:" + "0" * 64 if wrong_config else config_id}}
+        )
+        registry_id = (
+            blob(
+                {
+                    "manifests": [
+                        {
+                            "platform": {"os": "linux", "architecture": "amd64"},
+                            "digest": manifest_id,
+                        }
+                    ]
+                    * platforms
+                }
+            )
+            if index
+            else manifest_id
+        )
+        files["manifest.json"] = json.dumps(
+            [{"Config": "blobs/sha256/" + config_id.split(":")[1]}]
+        ).encode()
+        if oci:
+            files["oci-layout"] = b'{"imageLayoutVersion":"1.0.0"}'
+        if corrupt:
+            files["blobs/sha256/" + registry_id.split(":")[1]] += b" "
+        archive = tmp_path / "image.tar.gz"
+        with tarfile.open(archive, "w:gz") as image:
+            for name, data in files.items():
+                entry = tarfile.TarInfo(name)
+                entry.size = len(data)
+                image.addfile(entry, io.BytesIO(data))
+        release_data = {
+            **MANIFEST,
+            "image": "ghcr.io/roink/podcast-ad-remover@" + registry_id,
+            "image_id": registry_id if oci else config_id,
+        }
+        return archive, release_data, config_id
+
+    return build
+
+
+@pytest.mark.parametrize("oci,index", [(False, False), (True, False), (True, True)])
+def test_export_identity_supports_docker_and_oci_ids(exported_image, oci, index):
+    archive, manifest, config_id = exported_image(oci=oci, index=index)
+    assert installer.archive_image_id(archive, manifest) == config_id
+    assert installer.archive_image_id(archive, {**manifest, "image_id": config_id}) == config_id
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"wrong_config": True},
+        {"corrupt": True},
+        {"platforms": 0},
+        {"platforms": 2},
+    ],
+)
+def test_export_identity_rejects_broken_descriptor_chain(exported_image, options):
+    archive, manifest, _ = exported_image(**options)
+    with pytest.raises(ValueError):
+        installer.archive_image_id(archive, manifest)
+
+
+def test_export_identity_rejects_wrong_source_or_ci_identity(exported_image):
+    archive, manifest, _ = exported_image()
+    for change in [{"revision": "f" * 40}, {"image_id": "sha256:" + "f" * 64}]:
+        with pytest.raises(ValueError):
+            installer.archive_image_id(archive, {**manifest, **change})
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_poll_verifies_export_before_loading_or_pausing(
+    exported_image, tmp_path, monkeypatch, valid
+):
+    import shutil
+    from scripts import nas_poll as poll
+
+    archive, manifest, config_id = exported_image(corrupt=not valid)
+    manifest.update(archive_sha256="a" * 64, source_sha256="b" * 64)
+    state = tmp_path / "state"
+    state.mkdir()
+    monkeypatch.setattr(poll, "STATE", state)
+    monkeypatch.setattr(
+        poll,
+        "newest",
+        lambda: (
+            {"id": 123, "run_attempt": 1, "run_number": 1},
+            {name: name for name in ("nas-release.json", "nas-image.tar.gz", "nas-source.tar.gz")},
+        ),
+    )
+    monkeypatch.setattr(poll, "qualified", lambda *args: None)
+    monkeypatch.setattr(poll, "checksum", lambda *args: None)
+    monkeypatch.setattr(poll, "extract_source", lambda *args: None)
+    monkeypatch.setattr(poll, "current_image", lambda: "previous")
+
+    def download(name, path, limit):
+        if name == "nas-release.json":
+            path.write_text(json.dumps(manifest))
+        elif name == "nas-image.tar.gz":
+            shutil.copyfile(archive, path)
+        else:
+            path.write_bytes(b"synthetic source")
+
+    monkeypatch.setattr(poll, "download", download)
+    calls = []
+
+    def run(*args, **kwargs):
+        calls.append(args)
+        return json.dumps([{"Labels": {"org.opencontainers.image.revision": SHA}}])
+
+    monkeypatch.setattr(installer, "run", run)
+    monkeypatch.setattr(installer, "status", lambda: {"processing_paused": False})
+    pending = []
+    monkeypatch.setattr(poll, "apply_pending", pending.append)
+    if not valid:
+        with pytest.raises(ValueError, match="checksum"):
+            poll.poll()
+        assert not calls and not pending
+        assert not (state / "pending.json").exists()
+    else:
+        poll.poll()
+        assert calls[0][:2] == ("podman", "load")
+        assert calls[1] == ("podman", "image", "inspect", config_id)
+        assert pending[0]["release"]["image_id"] == config_id
+        assert json.loads((state / "build-123-1/nas-release.original.json").read_text()) == manifest

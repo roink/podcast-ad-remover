@@ -9,12 +9,14 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
 import subprocess
+import tarfile
 import time
 
 ROOT = Path("/tank/services/compose")
@@ -57,6 +59,66 @@ def validate_release(release):
         raise ValueError("Expected a digest-pinned fork image")
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", release.get("image_id", "")):
         raise ValueError("Invalid image identity")
+
+
+def archive_image_id(archive, release):
+    """Resolve a verified export to the config ID shared by Docker and Podman.
+
+    Docker's containerd store may report the OCI index as Id. Follow its
+    content-addressed descriptors rather than trusting a tag or revision label.
+    Legacy Docker exports are accepted only with an exact configuration ID.
+    """
+    validate_release(release)
+    with tarfile.open(archive) as image:
+
+        def read(name):
+            member = image.getmember(name)
+            if not member.isfile() or member.size > 1024 * 1024:
+                raise ValueError("Invalid image metadata member")
+            return image.extractfile(member).read()
+
+        def blob(digest):
+            if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+                raise ValueError("Invalid image descriptor digest")
+            raw = read("blobs/sha256/" + digest.split(":")[1])
+            if "sha256:" + hashlib.sha256(raw).hexdigest() != digest:
+                raise ValueError("Image descriptor checksum mismatch")
+            return json.loads(raw)
+
+        exports = json.loads(read("manifest.json"))
+        if len(exports) != 1:
+            raise ValueError("Expected one exported image")
+        raw = read(exports[0]["Config"])
+        config_id = "sha256:" + hashlib.sha256(raw).hexdigest()
+        config = json.loads(raw)
+        registry_digest = release["image"].split("@")[1]
+        # New exports carry the registry index/manifest as content-addressed blobs.
+        if "oci-layout" in image.getnames():
+            descriptor = blob(registry_digest)
+            if "manifests" in descriptor:
+                matches = [
+                    item
+                    for item in descriptor["manifests"]
+                    if item.get("platform", {}).get("os") == "linux"
+                    and item.get("platform", {}).get("architecture") == "amd64"
+                ]
+                if len(matches) != 1:
+                    raise ValueError("Expected one Linux amd64 image descriptor")
+                descriptor = blob(matches[0]["digest"])
+            if descriptor["config"]["digest"] != config_id:
+                raise ValueError("Registry image does not match exported configuration")
+            blob(config_id)
+            accepted_ids = {config_id, registry_digest}
+        else:
+            accepted_ids = {config_id}
+        if release["image_id"] not in accepted_ids:
+            raise ValueError("Exported image does not match CI image identity")
+        if config.get("os") != "linux" or config.get("architecture") != "amd64":
+            raise ValueError("Expected Linux amd64 image configuration")
+        labels = config.get("config", {}).get("Labels") or {}
+        if labels.get("org.opencontainers.image.revision") != release["revision"]:
+            raise ValueError("Exported image does not match CI source revision")
+        return config_id
 
 
 def install(staging, wait_seconds, restart_job=False):

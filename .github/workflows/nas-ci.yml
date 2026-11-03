@@ -65,6 +65,8 @@ jobs:
           from pathlib import Path
           p = Path('nas-release.json')
           release = json.loads(p.read_text())
+          from scripts.nas_install import archive_image_id
+          release['image_id'] = archive_image_id('nas-image.tar.gz', release)
           release.update(ci_run_id=int(os.environ['GITHUB_RUN_ID']), ci_run_attempt=int(os.environ['GITHUB_RUN_ATTEMPT']))
           for key, name in [('archive_sha256', 'nas-image.tar.gz'), ('source_sha256', 'nas-source.tar.gz')]:
               with open(name, 'rb') as stream:
