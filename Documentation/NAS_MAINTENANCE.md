@@ -91,7 +91,16 @@ builds the Dockerfile, and runs the offline container smoke check with disposabl
 data and no network. It publishes only
 `ghcr.io/roink/podcast-ad-remover:nas-<full-commit>` and uploads a small
 `nas-release` artifact containing `nas-release.json` (90-day retention).
-The manifest records the exact source commit, image ID and registry digest.
+The manifest records the exact source commit, image configuration ID and registry
+digest. Docker with a containerd image store may report an OCI index as its image
+ID, while Podman uses the configuration digest. CI resolves the configuration ID
+from the exported archive before publication. The automatic updater and manual
+fallback verify the registry index/manifest → Linux amd64 manifest → configuration
+hash chain for OCI exports, and accept legacy Docker exports only when their
+configuration hash exactly matches CI. Existing index-ID manifests are normalized
+locally with the original manifest retained as evidence. Identity validation occurs
+before image loading, pausing or installation. A failed validation never falls
+back to trusting a tag or revision label alone.
 Deployment pulls the **digest**, checks source/image identities and requires a
 successful matching NAS workflow run. No upstream Docker Hub tags or Pages are
 published. Source commits alone do not guarantee bit-identical rebuilds; deploy

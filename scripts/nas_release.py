@@ -16,9 +16,9 @@ import subprocess
 import tempfile
 
 try:
-    from .nas_install import validate_release
+    from .nas_install import archive_image_id, validate_release
 except ImportError:
-    from nas_install import validate_release
+    from nas_install import archive_image_id, validate_release
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -108,19 +108,11 @@ def main():
                 stdout=subprocess.DEVNULL,
             )
             run("docker", "pull", release["image"], env=docker_env)
-        info = json.loads(run("docker", "image", "inspect", release["image"], env=docker_env))[0]
-        if (
-            info["Id"] != release["image_id"]
-            or info["Config"]["Labels"]["org.opencontainers.image.revision"] != release["revision"]
-        ):
-            raise RuntimeError("Pulled image does not match CI source/image identity")
-        with subprocess.Popen(
-            ["docker", "save", release["image"]], stdout=subprocess.PIPE
-        ) as export:
-            subprocess.run(["ssh", args.host, "sudo podman load"], stdin=export.stdout, check=True)
-            export.stdout.close()
-            if export.wait():
-                raise RuntimeError("Image export failed")
+        image_archive = temporary / "image.tar"
+        run("docker", "save", "--output", str(image_archive), release["image"], env=docker_env)
+        release["image_id"] = archive_image_id(image_archive, release)
+        with image_archive.open("rb") as export:
+            subprocess.run(["ssh", args.host, "sudo podman load"], stdin=export, check=True)
         staging = run(
             "ssh",
             args.host,

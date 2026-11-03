@@ -211,6 +211,11 @@ def poll(check=False):
         # Only remove a previously extracted, fixed staging subdirectory. Never /data.
         shutil.rmtree(source)
     extract_source(staging / "nas-source.tar.gz", source)
+    config_id = installer.archive_image_id(staging / "nas-image.tar.gz", release)
+    if config_id != release["image_id"]:
+        write(staging / "nas-release.original.json", release)
+        release = {**release, "image_id": config_id}
+        write(staging / "nas-release.json", release)
     installer.run("podman", "load", "--input", str(staging / "nas-image.tar.gz"), timeout=1800)
     info = json.loads(installer.run("podman", "image", "inspect", release["image_id"]))[0]
     if info["Labels"].get("org.opencontainers.image.revision") != release["revision"]:

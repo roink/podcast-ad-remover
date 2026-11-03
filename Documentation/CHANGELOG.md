@@ -2,6 +2,8 @@
 
 ## NAS fork (unreleased)
 
+- Resolve Docker OCI index identities to verified image configuration digests for NAS CI publication, automatic installation and manual deployment, preserving strict hash/source checks and compatibility with older exports.
+
 - Encode audio paths in individual and unified RSS feeds so episode filenames containing question marks, fragments, percent signs or Unicode download correctly without reprocessing.
 
 - Automatically merge tested upstream bot proposals and install successful fork builds on the NAS after draining active jobs, using public checksummed build assets.
