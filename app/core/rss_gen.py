@@ -3,6 +3,7 @@ from app.core.publication import atomic_write, serialized_feed
 import logging
 from datetime import datetime
 from email.utils import format_datetime
+from urllib.parse import quote
 from uuid import uuid4
 from xml.etree.ElementTree import Element, SubElement, tostring
 from app.core.config import settings
@@ -127,11 +128,11 @@ class RSSGenerator:
                 if rel_path.startswith(".."):
                     raise ValueError("Path mismatch")
                 # Ensure we use forward slashes for the URL
-                url_path = rel_path.replace(os.sep, '/')
+                url_path = quote(rel_path.replace(os.sep, '/'), safe='/')
                 url = f"{base_url}/audio/{url_path}"
             except Exception:
                 # Fallback to current (potentially broken) logic if path math fails
-                filename = os.path.basename(ep['local_filename'])
+                filename = quote(os.path.basename(ep['local_filename']), safe="")
                 url = f"{base_url}/audio/{sub.slug}/{filename}"
                 
             enclosure.set('url', url)
@@ -204,10 +205,10 @@ class RSSGenerator:
                 rel_path = os.path.relpath(ep['local_filename'], settings.PODCASTS_DIR)
                 if rel_path.startswith(".."):
                     raise ValueError("Path mismatch")
-                url_path = rel_path.replace(os.sep, '/')
+                url_path = quote(rel_path.replace(os.sep, '/'), safe='/')
                 url = f"{base_url}/audio/{url_path}"
             except Exception:
-                filename = os.path.basename(ep['local_filename'])
+                filename = quote(os.path.basename(ep['local_filename']), safe="")
                 url = f"{base_url}/audio/{ep['podcast_slug']}/{filename}"
                 
             enclosure.set('url', url)
