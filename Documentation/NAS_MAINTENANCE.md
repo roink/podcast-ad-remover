@@ -41,6 +41,16 @@ Commit, push the feature branch to **origin**, and open a PR explicitly targetin
 ancestry are retained. The NAS candidate workflow verifies code and builds/tests
 the complete image for PRs. No PR build publishes or deploys an image.
 
+## RSS audio URL compatibility
+
+The NAS fork percent-encodes filesystem paths in individual, global unified and
+personal unified feed enclosures. This preserves existing GUID-derived media
+directories containing `?`, `#`, `%`, spaces or Unicode without renaming files or
+reprocessing episodes. Authentication remains a separate URL query parameter.
+The processor regenerates individual/global feeds at startup; personal unified
+feeds regenerate when requested. Refresh the client feed after installing the
+patch so cached malformed enclosure URLs are replaced.
+
 ## Upstream proposals
 
 `nas/maintenance.json` records the fork, upstream production branch (`main`) and

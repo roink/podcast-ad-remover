@@ -2,6 +2,8 @@
 
 ## NAS fork (unreleased)
 
+- Encode audio paths in individual and unified RSS feeds so episode filenames containing question marks, fragments, percent signs or Unicode download correctly without reprocessing.
+
 - Automatically merge tested upstream bot proposals and install successful fork builds on the NAS after draining active jobs, using public checksummed build assets.
 
 - Maintain `nas` with production-branch update proposals, verified fork images and explicit digest-pinned NAS deployments.
