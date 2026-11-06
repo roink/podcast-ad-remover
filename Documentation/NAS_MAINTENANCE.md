@@ -43,6 +43,12 @@ the complete image for PRs. No PR build publishes or deploys an image.
 
 ## RSS audio URL compatibility
 
+YAMNet model files in the image must be readable by arbitrary runtime UIDs:
+directories use 0755 and files 0644. The upstream archive contains root-only
+files, so the Dockerfile normalizes these permissions after downloading. NAS CI
+runs real offline inference as UID 992 with a read-only root and no capabilities.
+Keep the service's unprivileged identity and other hardening enabled.
+
 The NAS fork percent-encodes filesystem paths in individual, global unified and
 personal unified feed enclosures. This preserves existing GUID-derived media
 directories containing `?`, `#`, `%`, spaces or Unicode without renaming files or

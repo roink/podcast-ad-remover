@@ -229,7 +229,7 @@ numpy==2.5.2 ; python_full_version >= '3.12'
     #   -c constraints.txt
     #   ctranslate2
     #   onnxruntime
-oauthlib==4.0.0
+oauthlib==4.0.1
     # via
     #   -c constraints.txt
     #   requests-oauthlib

@@ -28,7 +28,9 @@ RUN python -m pip install --no-cache-dir --upgrade -r requirements-build.txt \
 COPY . .
 
 RUN python scripts/download_yamnet.py /opt/yamnet \
-    && python scripts/download_moonshine.py /opt/moonshine
+    && python scripts/download_moonshine.py /opt/moonshine \
+    && find /opt/yamnet -type d -exec chmod 755 {} + \
+    && find /opt/yamnet -type f -exec chmod 644 {} +
 
 # Create data directories
 RUN mkdir -p /data/db /data/podcasts /data/feeds /data/models
