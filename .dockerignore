@@ -43,3 +43,5 @@ temp_modeltests/
 
 !scripts/download_yamnet.py
 !scripts/download_moonshine.py
+
+!scripts/yamnet_smoke.py

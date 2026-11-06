@@ -43,6 +43,12 @@ the complete image for PRs. No PR build publishes or deploys an image.
 
 ## RSS audio URL compatibility
 
+YAMNet model files in the image must be readable by arbitrary runtime UIDs:
+directories use 0755 and files 0644. The upstream archive contains root-only
+files, so the Dockerfile normalizes these permissions after downloading. NAS CI
+runs real offline inference as UID 992 with a read-only root and no capabilities.
+Keep the service's unprivileged identity and other hardening enabled.
+
 The NAS fork percent-encodes filesystem paths in individual, global unified and
 personal unified feed enclosures. This preserves existing GUID-derived media
 directories containing `?`, `#`, `%`, spaces or Unicode without renaming files or
@@ -213,3 +219,19 @@ image/source-context link. Account for SQLite WAL/SHM files when restoring a sto
 database. Never roll back an entire shared dataset over unrelated running services.
 Start and check readiness before restoring the recorded pause state. Keep the
 recovery point until real episode acceptance has passed.
+
+## DeepSeek structured output
+
+Official HTTPS `api.deepseek.com` endpoints (root or `/v1`) use the Responses API
+for timeline and summary schemas. DeepSeek Chat Completions supports JSON-object
+mode but rejects the strict JSON-schema response format used by this application.
+Other OpenAI-compatible hosts retain their existing Chat Completions behavior.
+Responses preserve strict schemas, local coverage/category validation, the shared
+request budget and token accounting. Incomplete, refused and blank responses fail
+without downgrading output enforcement or switching models. Plain-text connection
+checks still use Chat Completions. No credentials or database settings change.
+
+This path was checked with three small synthetic requests against DeepSeek Flash:
+the exact timeline schema, summary schema, and patched provider classification
+with an explicit sponsor between two editorial passages. All passed. These are
+compatibility checks, not a benchmark of real-podcast classification accuracy.

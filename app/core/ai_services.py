@@ -465,6 +465,9 @@ class OpenAIProvider(LLMProvider):
         self.rate_limit_provider = rate_limit_provider
         self.gemini_free_tier = gemini_free_tier and rate_limit_provider == 'gemini'
         self.is_openrouter = base_url and "openrouter" in base_url
+        endpoint = urlsplit(base_url or "")
+        self.use_responses = (endpoint.scheme == "https" and endpoint.hostname == "api.deepseek.com"
+                              and endpoint.path.rstrip("/") in ("", "/v1"))
         self.last_model = None
         self._init_client()
 
@@ -498,6 +501,20 @@ class OpenAIProvider(LLMProvider):
             with provider_request(self.rate_limit_provider, model,
                                   gemini_free_tier=self.gemini_free_tier,
                                   input_tokens=estimate_input_tokens(kwargs) if self.gemini_free_tier else 0) as metrics:
+                if self.use_responses and schema is not None:
+                    response = self.client.responses.create(
+                        model=model, input=messages,
+                        text={"format": {"type": "json_schema", "name": "podcast_classification",
+                                         "strict": True, "schema": schema}})
+                    record_usage(metrics, response)
+                    refused = any(getattr(part, "type", None) == "refusal"
+                                  for item in response.output
+                                  for part in (getattr(item, "content", None) or []))
+                    if response.status != "completed" or refused or not response.output_text.strip():
+                        raise AnalysisError("Provider returned incomplete, refused or empty output")
+                    self.last_model = model
+                    self.last_output_mode = "json_schema"
+                    return response.output_text
                 response = self.client.chat.completions.create(**kwargs)
                 record_usage(metrics, response)
                 choice = response.choices[0]
